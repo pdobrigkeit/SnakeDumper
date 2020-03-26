@@ -1,9 +1,21 @@
 #!/usr/bin/env php
 <?php
-require_once __DIR__ . '/../vendor/autoload.php';
 
 use Digilist\SnakeDumper\Command\DumpCommand;
 use Symfony\Component\Console\Application;
+
+$here = __DIR__ . DIRECTORY_SEPARATOR;
+$autoloaderPath = 'phar://snakedumper.phar/vendor/autoload.php';
+if (!strpos(basename(__FILE__), 'phar')) {
+    if (file_exists($here . 'vendor/autoload.php')) {
+        $autoloaderPath = $here . 'vendor/autoload.php';
+    } elseif (file_exists($here . '../../../autoload.php')) {
+        $autoloaderPath = $here . '../../../autoload.php';
+    } elseif (file_exists($here . '../vendor/autoload.php')) {
+        $autoloaderPath = $here . '../vendor/autoload.php';
+    }
+}
+require $autoloaderPath;
 
 $application = new Application('SnakeDumper');
 $application->add(new DumpCommand());

@@ -6,10 +6,12 @@ use Digilist\SnakeDumper\Configuration\DatabaseConfiguration;
 use Digilist\SnakeDumper\Dumper\Sql\PlatformAdjustment\DummyAdjustment;
 use Digilist\SnakeDumper\Dumper\Sql\PlatformAdjustment\MySQLPlatformAdjustment;
 use Digilist\SnakeDumper\Dumper\Sql\PlatformAdjustment\PlatformAdjustmentInterface;
+use Digilist\SnakeDumper\Dumper\Sql\PlatformAdjustment\PostgreSQLPlatformAdjustment;
 use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Platforms\MySqlPlatform;
+use Doctrine\DBAL\Platforms\PostgreSqlPlatform;
 use PDO;
 
 class ConnectionHandler
@@ -141,7 +143,8 @@ class ConnectionHandler
     private function initPlatformAdjustment(Connection $connection)
     {
         $adjustments = [
-            MySqlPlatform::class => MySQLPlatformAdjustment::class
+            MySqlPlatform::class => MySQLPlatformAdjustment::class,
+            PostgreSqlPlatform::class => PostgreSQLPlatformAdjustment::class
         ];
 
         foreach ($adjustments as $platformClass => $adjustmentClass) {

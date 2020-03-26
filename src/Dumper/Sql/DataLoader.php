@@ -75,12 +75,12 @@ class DataLoader
 
         // The actual select is wrapped in a subquery, to consider groupings, limits etc.
         // We only want to get the number of rows that will be dumped later.
-        $query = sprintf('SELECT COUNT(*) FROM (%s) AS tmp', $query);
+        $query = sprintf('SELECT COUNT(*) as c FROM (%s) AS tmp', $query);
 
         $result = $this->connectionHandler->getConnection()->prepare($query);
         $result->execute($parameters);
 
-        return (int) $result->fetchAll()[0]['COUNT(*)'];
+        return (int) $result->fetchAll()[0]['c'];
     }
 
     /**
