@@ -43,18 +43,20 @@ class DataLoader
      * @param Table              $table
      * @param array              $harvestedValues
      *
-     * @return \Doctrine\DBAL\Driver\Statement
+     * @return BatchIterator
      * @throws \Doctrine\DBAL\DBALException
      */
     public function executeSelectQuery(TableConfiguration $tableConfig, Table $table, array $harvestedValues)
     {
-        list($query, $parameters) = $this->buildSelectQuery($tableConfig, $table, $harvestedValues);
+        return new BatchIterator($this->connectionHandler, $tableConfig, $table, $harvestedValues);
 
-        $this->logger->debug('Executing select query' . $query);
-        $result = $this->connectionHandler->getConnection()->prepare($query);
-        $result->execute($parameters);
-
-        return $result;
+//        list($query, $parameters) = $this->buildSelectQuery($tableConfig, $table, $harvestedValues);
+//
+//        $this->logger->debug('Executing select query' . $query);
+//        $result = $this->connectionHandler->getConnection()->prepare($query);
+//        $result->execute($parameters);
+//
+//        return $result;
     }
 
     /**
