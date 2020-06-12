@@ -2,12 +2,16 @@
 namespace Digilist\SnakeDumper\Dumper\Sql;
 
 use Digilist\SnakeDumper\Configuration\Table\Filter\DataDependentFilter;
+use Digilist\SnakeDumper\Configuration\Table\Filter\DefaultFilter;
+use Digilist\SnakeDumper\Configuration\Table\Filter\FilterInterface;
 use Digilist\SnakeDumper\Configuration\Table\TableConfiguration;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Driver\Statement;
 use Iterator;
 use ArrayIterator;
+use InvalidArgumentException;
+use Psr\Log\LoggerInterface;
 
 class BatchIterator implements Iterator {
 
@@ -197,6 +201,90 @@ class BatchIterator implements Iterator {
     }
 
     /**
+     * Validates and modifies the data dependent filter to act like an IN-filter.
+     *
+     * @param DataDependentFilter $filter
+     * @param TableConfiguration               $tableConfig
+     * @param array                            $harvestedValues
+     */
+    private function handleDataDependentFilter(
+        DataDependentFilter $filter,
+        TableConfiguration $tableConfig,
+        array $harvestedValues
+    ) {
+        $tableName = $tableConfig->getName();
+        $referencedTable = $filter->getReferencedTable();
+        $referencedColumn = $filter->getReferencedColumn();
+
+        // Ensure the dependent table has been dumped before the current table
+        if (!isset($harvestedValues[$referencedTable])) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'The table %s has not been dumped before %s',
+                    $referencedTable,
+                    $tableName
+                )
+            );
+        }
+
+        // Ensure the necessary column was included in the dump
+        if (!isset($harvestedValues[$referencedTable][$referencedColumn])) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'The column %s of table %s has not been dumped.',
+                    $referencedTable,
+                    $tableName
+                )
+            );
+        }
+
+        $filter->setValue($harvestedValues[$referencedTable][$referencedColumn]);
+    }
+
+    /**
+     * Binds the parameters of the filter into the query builder.
+     *
+     * This function returns false, if the condition is not fulfill-able and no row can be selected at all.
+     *
+     * @param QueryBuilder    $qb
+     * @param FilterInterface $filter
+     * @param int             $paramIndex
+     *
+     * @return array|string|bool
+     */
+    private function bindParameters(QueryBuilder $qb, FilterInterface $filter, $paramIndex)
+    {
+        $inOperator = in_array($filter->getOperator(), [
+            DefaultFilter::OPERATOR_IN,
+            DefaultFilter::OPERATOR_NOT_IN,
+        ]);
+
+        if ($inOperator) {
+            // the IN and NOT IN operator expects an array which needs a different handling
+            // -> each value in the array must be mapped to a single param
+
+            $values = (array) $filter->getValue();
+            if (empty($values)) {
+                $values = array('_________UNDEFINED__________');
+            }
+
+            $param = array();
+            foreach ($values as $valueIndex => $value) {
+                $tmpParam = 'param_' . $paramIndex . '_' . $valueIndex;
+                $param[] = ':' . $tmpParam;
+
+                $qb->setParameter($tmpParam, $value);
+            }
+        } else {
+            $param = ':param_' . $paramIndex;
+
+            $qb->setParameter('param_' . $paramIndex, $filter->getValue());
+        }
+
+        return $param;
+    }
+
+    /**
      * (PHP 5 &gt;= 5.0.0)<br/>
      * Return the current element
      * @link http://php.net/manual/en/iterator.current.php
@@ -238,7 +326,7 @@ class BatchIterator implements Iterator {
      * @return mixed scalar on success, or null on failure.
      */
     public function key() {
-        $this->iterator->key();
+        return $this->iterator->key();
     }
 
     /**
@@ -265,8 +353,4 @@ class BatchIterator implements Iterator {
         $this->offset = 0;
         $this->iterator = new ArrayIterator($this->loadBatch());
     }
-
-
-
-
 }
